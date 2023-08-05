@@ -126,20 +126,22 @@ async function check(access_token, MKH, user_id, index, zalo_id) {
 
 app.post('/api/getUserData', async (req, res) => {
     try {
+
         const userData = await getUserData();
-        console.log(userData);
 
-        // Read data from the file synchronously
-        const fileName = 'data.txt';
-        const data = fs.readFileSync(fileName, 'utf8');
+        const dataArray = req.body.Arraydata;
+        console.log(dataArray)
+        // // Read data from the file synchronously
+        // const fileName = 'data.txt';
+        // const data = fs.readFileSync(fileName, 'utf8');
 
-        // Tách nội dung thành mảng dựa trên dòng (\n)
-        const dataArray = data.split('\n');
+        // // Tách nội dung thành mảng dựa trên dòng (\n)
+        // const dataArray = data.split('\n');
 
         const results = [];
 
         for (const element of dataArray) {
-            console.log("element:", element);
+            //console.log("element:", element);
             const dataPull = await check(userData.data.access_token, element, userData.data.user_id, 0, userData.data.zalo_id);
 
             results.push(dataPull);

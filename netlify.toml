@@ -1,4 +1,0 @@
-[build]
-  command = "npm install" 
-[dev]
-  command = "node server.js"

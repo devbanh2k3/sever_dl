@@ -1,7 +1,8 @@
 const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
-var cors = require('cors')
+var cors = require('cors');
+const { da } = require('date-fns/locale');
 
 const app = express();
 app.use(express.json());
@@ -123,6 +124,109 @@ async function check(access_token, MKH, user_id, index, zalo_id) {
         return null; // Return null in case of an error
     }
 }
+
+
+async function DataMomo(token, username, password) {
+    const { format, startOfMonth, addDays, parseISO } = require('date-fns');
+
+    const currentDate1 = new Date();
+    const firstDayOfMonth = startOfMonth(currentDate1);
+
+    const fromDate = format(firstDayOfMonth, "yyyy-MM-dd'T'HH:mm:ss.SS");
+
+    const toDate = new Date();
+    const dataPush = [];
+    const dateList = [];
+    let currentDate = parseISO(fromDate);
+    console.log(currentDate)
+    while (currentDate <= toDate) {
+        const formattedDate = format(currentDate, "yyyy-MM-dd'T'HH:mm:ss.SS");
+        dateList.push({ fromDate: formattedDate, toDate: formattedDate.replace('00:00:00.00', '23:59:59.00') });
+        currentDate = addDays(currentDate, 1);
+    }
+    for (const dateRange of dateList) {
+        const { fromDate, toDate } = dateRange;
+        var data = await requestDataMomo(fromDate, toDate, token)
+        data.time = fromDate
+        data.username = username
+        data.password = password
+        dataPush.push(data)
+    }
+    return dataPush;
+
+}
+async function requestDataMomo(fromDate, toDate, token) {
+    const url = 'https://business.momo.vn/api/transaction/v2/transactions/statistics';
+    const params = {
+        fromDate: fromDate,
+        toDate: toDate,
+        status: 'ALL',
+        paymentMethod: 'ALL',
+        merchantId: '1230738',
+        language: 'vi'
+    };
+
+    const headers = {
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+        'Authorization': 'Bearer ' + token, // Thay YOUR_ACCESS_TOKEN bằng access token thực tế
+        'MerchantId': '1230738',
+        'Connection': 'keep-alive'
+        // Thêm các header khác từ curl của bạn (nếu cần)
+    };
+
+    try {
+        const response = await axios.get(url, {
+            params,
+            headers
+        });
+        console.log(response.data)
+        return response.data;
+    } catch (error) {
+        return error
+    }
+}
+
+async function login(username, password) {
+    const url = 'https://business.momo.vn/api/authentication/login?language=vi';
+    const headers = {
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/json',
+        // Thêm các header khác từ curl của bạn (nếu cần)
+    };
+    const data = {
+        username: username,
+        password: password
+    };
+
+    try {
+        const response = await axios.post(url, data, { headers });
+        return response.data;
+    } catch (error) {
+        console.error('Error during login:', error);
+        throw error;
+    }
+}
+app.post('/get-data', async (req, res) => {
+    const { username, password } = req.body;
+    console.log('testx', username)
+    try {
+        // Thực hiện các bước xác thực, ví dụ: login để lấy token
+        const result = await login(username, password);
+        console.log('Login result:', result);
+
+        // Sử dụng token để lấy dữ liệu từ DataMomo
+        const data = await DataMomo(result.data.token, username, password);
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error getting data:', error);
+        res.status(500).json({ error: 'Error getting data' });
+    }
+});
+
 
 app.post('/api/getUserData', async (req, res) => {
     try {

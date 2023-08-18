@@ -126,7 +126,7 @@ async function check(access_token, MKH, user_id, index, zalo_id) {
 }
 
 
-async function DataMomo(token, username, password) {
+async function DataMomo(token, username, password, id) {
     const { format, startOfMonth, addDays, parseISO } = require('date-fns');
 
     const currentDate1 = new Date();
@@ -146,7 +146,7 @@ async function DataMomo(token, username, password) {
     }
     for (const dateRange of dateList) {
         const { fromDate, toDate } = dateRange;
-        var data = await requestDataMomo(fromDate, toDate, token)
+        var data = await requestDataMomo(fromDate, toDate, token, id)
         data.time = fromDate
         data.username = username
         data.password = password
@@ -155,14 +155,14 @@ async function DataMomo(token, username, password) {
     return dataPush;
 
 }
-async function requestDataMomo(fromDate, toDate, token) {
+async function requestDataMomo(fromDate, toDate, token, id) {
     const url = 'https://business.momo.vn/api/transaction/v2/transactions/statistics';
     const params = {
         fromDate: fromDate,
         toDate: toDate,
         status: 'ALL',
         paymentMethod: 'ALL',
-        merchantId: '1230738',
+        merchantId: id,
         language: 'vi'
     };
 
@@ -170,7 +170,7 @@ async function requestDataMomo(fromDate, toDate, token) {
         'Accept': 'application/json',
         'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
         'Authorization': 'Bearer ' + token, // Thay YOUR_ACCESS_TOKEN bằng access token thực tế
-        'MerchantId': '1230738',
+        'MerchantId': id,
         'Connection': 'keep-alive'
         // Thêm các header khác từ curl của bạn (nếu cần)
     };
@@ -186,7 +186,25 @@ async function requestDataMomo(fromDate, toDate, token) {
         return error
     }
 }
+async function getID(username, token) {
+    const url = "https://business.momo.vn/api/authorization/v2/users/roles?username=" + username + "&language=vi";
+    const headers = {
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+        'Authorization': 'Bearer ' + token, // Thay YOUR_ACCESS_TOKEN bằng access token thực tế
 
+        // Thêm các header khác từ curl của bạn (nếu cần)
+    };
+
+    try {
+        const response = await axios.get(url, {
+            headers
+        });
+        return response.data;
+    } catch (error) {
+        return error
+    }
+}
 async function login(username, password) {
     const url = 'https://business.momo.vn/api/authentication/login?language=vi';
     const headers = {
@@ -215,10 +233,17 @@ app.post('/get-data', async (req, res) => {
     try {
         // Thực hiện các bước xác thực, ví dụ: login để lấy token
         const result = await login(username, password);
-        console.log('Login result:', result);
+
+
+        // lấy id acc
+        let dataID = await getID(result.data.username, result.data.token)
+        //console.log('Login result:', dataID);
+
+        let id = dataID.data.merchants[0].merchantId
+        //console.log('Login result:', id);
 
         // Sử dụng token để lấy dữ liệu từ DataMomo
-        const data = await DataMomo(result.data.token, username, password);
+        const data = await DataMomo(result.data.token, username, password, id);
 
         res.json(data);
     } catch (error) {
